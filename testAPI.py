@@ -1,7 +1,7 @@
 import requests
 
 url="https://192.168.151.254/osticket/ost_wbs/"
-key = "XXXXXXXXX"
+key = "FB0D35801DC2CC92FFD788E667CA7B3B"
 verifyCert = False
 
 #auth header:

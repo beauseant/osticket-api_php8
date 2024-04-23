@@ -38,6 +38,17 @@ class Ticket
             );
         }  
 
+        function compileResultsUpdated ($result)
+        {
+            return array(
+                    'ticket_id'=>$result->ticket_id,
+                    'updated'=>$result->updated,
+                    'status_id'=>$result->status_id,
+                    'name'=>mb_convert_encoding($result->name,'UTF-8')
+            );
+        }
+
+
         public function all($parameters)
         {
 
@@ -489,6 +500,50 @@ class Ticket
 
             return $numRows;
         }
+
+        #cambios:
+        public function lastChanges ($parameters)
+        {
+            
+            // Escape Parameters
+            $parameters['parameters'] = Helper::escapeParameters($parameters["parameters"]);
+
+            // Check Request method
+            $validRequests = array("GET");
+            Helper::validRequest($validRequests);
+
+            // Connect Database
+            $Dbobj = new DBConnection(); 
+            $mysqli = $Dbobj->getDBConnect();
+            $minutes = $parameters["parameters"]['minutes'];
+
+            $sql = "SELECT ticket_id, " .TABLE_PREFIX ."ticket.created, lastupdate, source, ".TABLE_PREFIX."ticket.updated, status_id,name  FROM  ".TABLE_PREFIX."ticket, ".TABLE_PREFIX."ticket_status WHERE  ".TABLE_PREFIX."ticket.updated  BETWEEN NOW() - INTERVAL ". $minutes . " MINUTE AND NOW() and  ".TABLE_PREFIX."ticket_status.id= ".TABLE_PREFIX."ticket.status_id ORDER BY updated ";
+
+            #$getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id WHERE ".TABLE_PREFIX."ticket.ticket_id = '$tID' OR ".TABLE_PREFIX."ticket.number = '$tID'");
+            $getTickets = $mysqli->query($sql);
+            // Array that stores all results
+            $result = array();
+            $numRows = $getTickets->num_rows;
+            
+            // Fetch data
+            while($PrintTickets = $getTickets->fetch_object()){ array_push($result, self::compileResultsUpdated($PrintTickets)); }
+            
+            // Check if there are some results in the array
+            if(!$result){
+                throw new Exception("No items found.");
+            }
+
+            // build return array
+            $returnArray = array('total' => $numRows, 'tickets' => $result); 
+            
+            // Return values
+            return $returnArray;  
+
+
+
+        }
+
+
 
 }
 ?>

@@ -5,10 +5,10 @@ error_reporting();
 
 // Database Credentials
 define('DBTYPE','mysql'); // Database type (mysql, sql..)
-define('DBHOST','xxx'); // IP Address
-define('DBNAME','xxx'); // Database Name
-define('DBUSER','xxx'); // Database User
-define('DBPASS','xxxxxxx'); // Database Password
+define('DBHOST','asuka'); // IP Address
+define('DBNAME','osticket'); // Database Name
+define('DBUSER','osticket'); // Database User
+define('DBPASS','AXiepodai6uij&aiph'); // Database Password
 
 // Table prefix
 define('TABLE_PREFIX','ost_');
