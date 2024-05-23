@@ -512,11 +512,14 @@ class Ticket
             Cambios realizados en la API. 
             Se ha añadido una función para que devuelva los cambios realizados en los tickets en los últimos minutos. En formato GET y en formato POST.
             También se ha añadido una función para obtener un ticket a través de su ID para que se haga en formato POST.
+            Lo mismo con la función que devuelve los tickets entre dos fechas, ahora es formato POST.
+            Lo de usar el formato post es porque en google cloud no se admiten las peticiones GET con body.
         ###############################################################################3
         ###############################################################################3
         ###############################################################################3
         ###############################################################################3
         */
+
 
         public function lastChanges ($parameters)
         {
@@ -653,6 +656,127 @@ class Ticket
             // Return values
             return $returnArray;  
         }
+        public function allP($parameters)
+        {
+            
+            // Escape Parameters
+            $parameters['parameters'] = Helper::escapeParameters($parameters["parameters"]);
+            // Check Permission
+            Helper::checkPermission();            
+
+            // Check Request method
+            $validRequests = array("POST", "PUT");
+            Helper::validRequest($validRequests);
+
+            // Connect Database
+            $Dbobj = new DBConnection(); 
+            $mysqli = $Dbobj->getDBConnect();
+
+            switch ($parameters["sort"]) {
+                // Sorte by Date
+                case "creationDate":
+
+                    // Get Start&End Date
+                    $startDate = $parameters['parameters']['start_date'];
+                    $endDate = $parameters['parameters']['end_date'];
+
+                    // Query
+                    $getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id WHERE ".TABLE_PREFIX."ticket.created >= '$startDate' and ".TABLE_PREFIX."ticket.created <= '$endDate'");
+
+                break;
+                // Sorte by Last Update Date
+                case "lastUpdateDate":
+
+                    // Get Start&End Date
+                    $startDate = $parameters['parameters']['start_date'];
+                    $endDate = $parameters['parameters']['end_date'];
+
+                    // Query
+                    $getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id WHERE ".TABLE_PREFIX."ticket.lastupdate >= '$startDate' and ".TABLE_PREFIX."ticket.lastupdate <= '$endDate'");
+
+                break;
+                // Sorte by Status
+                case "status":
+
+                    // Check if ticket status is available
+                    $tStatus = $parameters["parameters"]["status"];
+                    Helper::checkTicketStatus($tStatus);
+
+                    // 0 value does not exist, so it is equal to "all records"
+                    switch ($tStatus) {
+                        case 0:
+                            $getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id");
+                        break;
+                        default:
+                            $getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id WHERE ".TABLE_PREFIX."ticket.status_id = '$tStatus'");
+                        break;
+                    }
+
+                break;
+                // Sort Status by Date 
+                case "statusByDate":
+
+                    // Get Start&End Date
+                    $startDate = $parameters['parameters']['start_date'];
+                    $endDate = $parameters['parameters']['end_date'];
+
+                    // Check valid ticket status
+                    $tStatus = $parameters["parameters"]["status"];
+                    Helper::checkTicketStatus($tStatus);
+
+                    // Query
+                    $getTickets = $mysqli->query("SELECT * FROM ".TABLE_PREFIX."ticket INNER JOIN ".TABLE_PREFIX."ticket__cdata ON ".TABLE_PREFIX."ticket.ticket_id = ".TABLE_PREFIX."ticket__cdata.ticket_id INNER JOIN ".TABLE_PREFIX."thread ON ".TABLE_PREFIX."thread.object_id = ".TABLE_PREFIX."ticket.ticket_id INNER JOIN ".TABLE_PREFIX."thread_entry ON ".TABLE_PREFIX."thread.id = ".TABLE_PREFIX."thread_entry.thread_id WHERE ".TABLE_PREFIX."ticket.created >= '$startDate' and ".TABLE_PREFIX."ticket.created <= '$endDate' AND ".TABLE_PREFIX."ticket.status_id = '$tStatus'");
+
+                break;
+                default:
+                    throw new Exception("Unknown Parameter.");
+                break;
+            }
+
+            // Array that stores all results
+            $result = array();
+            $ownTicket = array();
+           
+            // get num rows
+            $numRows = $getTickets->num_rows;
+            $countRows = 1;
+            $sameTicket = false;
+            
+            // Fetch data
+            while($PrintTickets = $getTickets->fetch_object())
+            {
+                    // get whatever ticket id it is
+                    if(!$sameTicket) { $sameTicket = $PrintTickets->ticket_id;  }
+
+                    if($PrintTickets->ticket_id != $sameTicket) {  
+                        array_push($result, $ownTicket);
+                        $sameTicket = $PrintTickets->ticket_id;
+                        $ownTicket = array();
+                    }
+
+                    // Compile results
+                    array_push($ownTicket, self::compileResults($PrintTickets));   
+
+                    if($countRows == $numRows)
+                        array_push($result, $ownTicket);
+
+                    $countRows++;
+            }
+        
+            // Check if there are some results in the array
+            if(!$result){
+                throw new Exception("No items found.");
+            }
+            
+            // build return array
+            $returnArray = array('total' => $numRows, 'tickets' => $result); 
+            
+            // Return values
+            return $returnArray;  
+        }
+
+
+        
 
 }
 ?>
